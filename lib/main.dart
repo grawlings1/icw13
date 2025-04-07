@@ -23,18 +23,34 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
   final String title;
   const MyHomePage({Key? key, required this.title}) : super(key: key);
+    
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+    
+class _MyHomePageState extends State<MyHomePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
     
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(widget.title),
       ),
       body: Center(
-        child: RegisterEmailSection(auth: FirebaseAuth.instance),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              RegisterEmailSection(auth: _auth),
+              SizedBox(height: 20),
+              EmailPasswordForm(auth: _auth),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -129,6 +145,96 @@ class _RegisterEmailSectionState extends State<RegisterEmailSection> {
                 _success ? 'Registered as $_userEmail' : 'Registration failed',
                 style: TextStyle(color: _success ? Colors.green : Colors.red),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class EmailPasswordForm extends StatefulWidget {
+  final FirebaseAuth auth;
+  const EmailPasswordForm({Key? key, required this.auth}) : super(key: key);
+    
+  @override
+  _EmailPasswordFormState createState() => _EmailPasswordFormState();
+}
+    
+class _EmailPasswordFormState extends State<EmailPasswordForm> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _success = false;
+  String _userEmail = '';
+    
+  void _signIn() async {
+    try {
+      await widget.auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      setState(() {
+        _success = true;
+        _userEmail = _emailController.text.trim();
+      });
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _success = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign in failed: ${e.message}')),
+      );
+      print('Sign in error: ${e.code} - ${e.message}');
+    }
+  }
+    
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              'Sign In',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            TextFormField(
+              controller: _emailController,
+              decoration: InputDecoration(labelText: 'Email'),
+              validator: (value) {
+                if (value == null || value.isEmpty)
+                  return 'Please enter an email';
+                if (!value.contains('@'))
+                  return 'Enter a valid email';
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _passwordController,
+              decoration: InputDecoration(labelText: 'Password'),
+              obscureText: true,
+              validator: (value) {
+                if (value == null || value.isEmpty)
+                  return 'Please enter a password';
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  _signIn();
+                }
+              },
+              child: Text('Sign In'),
+            ),
+            SizedBox(height: 10),
+            Text(
+              _success ? 'Signed in as $_userEmail' : 'Sign in failed',
+              style: TextStyle(color: _success ? Colors.green : Colors.red),
+            )
           ],
         ),
       ),
